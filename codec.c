@@ -14,28 +14,27 @@
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
 
-static int codec_probe(struct snd_soc_codec *codec)
+static int codec_probe(struct snd_soc_component *codec)
 {
-pr_info("In codec probe\n");
-return 0;
+	pr_info("In codec probe\n");
+	return 0;
 }
 
-static int codec_remove(struct snd_soc_codec *codec)
+static void codec_remove(struct snd_soc_component *codec)
 {
-pr_info("In codec_remove\n");
-return 0;
+	pr_info("In codec_remove\n");
 }
 
-static int codec_suspend(struct snd_soc_codec *codec)
+static int codec_suspend(struct snd_soc_component *codec)
 {
-pr_info("In codec_suspend\n");
-return 0;
+	pr_info("In codec_suspend\n");
+	return 0;
 }
 
-static int codec_resume(struct snd_soc_codec *codec)
+static int codec_resume(struct snd_soc_component *codec)
 {
-pr_info("In codec_resume\n");
-return 0;
+	pr_info("In codec_resume\n");
+	return 0;
 }
 
 /*Dai driver ops*/
@@ -58,8 +57,8 @@ static int codec_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 	return 0;
 }
 
-static int codec_set_bias_level(struct snd_soc_codec *codec,
-				 enum snd_soc_bias_level level)
+static int codec_set_bias_level(struct snd_soc_component *codec,
+				enum snd_soc_bias_level level)
 {
 	pr_info("In codec_set_bias_level\n");
 	return 0;
@@ -127,26 +126,21 @@ static struct snd_soc_dai_driver codec_dai[] = {
 	}
 };
 
-static int rt298_spk_event(struct snd_soc_dapm_widget *w,
-			    struct snd_kcontrol *kcontrol, int event)
-{
-	pr_info("In rt298_spk_event\n");
-	return 0;
-}
-
-static struct snd_soc_codec_driver codec_driver = {
+static struct snd_soc_component_driver soc_codec_driver = {
 	/*driver ops*/
 	.probe = codec_probe,
 	.remove = codec_remove,
 	.suspend = codec_suspend,
 	.resume = codec_resume,
 	.set_bias_level = codec_set_bias_level,
-	.idle_bias_off = true,
+	// .idle_bias_off = true,
 
+	/*
 	.component_driver = {
 		.controls = NULL,
 		.num_controls = 0,
 	},
+	*/
 };
 
 int snd_codec_probe(struct platform_device *pdev)
@@ -154,15 +148,16 @@ int snd_codec_probe(struct platform_device *pdev)
 	int ret = 0;
 	printk("Hi I am Codec Driver\n\n");
 	pr_info("Now I am doing all codec configuration\n");
-	ret = snd_soc_register_codec(&pdev->dev, &codec_driver, codec_dai, ARRAY_SIZE(codec_dai));
+	ret = devm_snd_soc_register_component(&pdev->dev,
+			&soc_codec_driver, codec_dai, ARRAY_SIZE(codec_dai));
 	printk("ret %d\n",ret);
 	return 0;
 }
 
 static int snd_codec_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&pdev->dev);
-	snd_soc_unregister_codec(&pdev->dev);
+	// snd_soc_unregister_platform(&pdev->dev);
+	// snd_soc_unregister_codec(&pdev->dev);
 
 	return 0;
 }

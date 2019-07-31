@@ -16,6 +16,7 @@ struct s_plat_dev
 
 struct buffer_manipulation_tools {
 	struct timer_list timer;
+	struct snd_pcm_substream *substream;
 	uint32_t Bps; //Bytes per second
 	unsigned long per_size; //Period size in bytes
 	uint32_t pos; //Hardware pointer position in ring buffer
@@ -88,10 +89,11 @@ void update_pos(struct buffer_manipulation_tools *bmt)
 	bmt->pos += bmt->per_size;
 }
 
-void timer_callback(unsigned long pvt_data)
+void timer_callback(struct timer_list *t)
 {
-	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)pvt_data;
-	struct buffer_manipulation_tools *bmt = get_bmt(substream);
+
+	struct buffer_manipulation_tools *bmt  = from_timer(bmt, t, timer);
+	struct snd_pcm_substream *substream = bmt->substream;;
 	update_pos(bmt);
 	snd_pcm_period_elapsed(substream);
 	start_timer(bmt);
@@ -146,22 +148,19 @@ static void platform_pcm_free(struct snd_pcm *pcm)
 	DEBUG_PRINT;
 }
 
-static int platform_soc_probe(struct snd_soc_platform *platform)
+static int platform_soc_probe(struct snd_soc_component *component)
 {
 	DEBUG_PRINT;
 
 	return 0;
 }
 
-static struct snd_soc_platform_driver platform_drv  = {
+static struct snd_soc_component_driver soc_pcm_driver = {
+	.name		= "plat-driver",
 	.probe		= platform_soc_probe,
 	.ops		= &platform_ops,
 	.pcm_new	= platform_pcm_new,
 	.pcm_free	= platform_pcm_free,
-};
-
-static const struct snd_soc_component_driver platform_component = {
-	.name           = "snd-soc-plat",
 };
 
 /*
@@ -217,13 +216,17 @@ static int dai_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	DEBUG_PRINT;
 	bmt = kmalloc(sizeof(struct buffer_manipulation_tools), GFP_KERNEL);
-	printk("substream->private_data %x\n", substream->private_data);
+	printk("substream->private_data 0x%p\n", substream->private_data);
 	substream->runtime->private_data = bmt;
 	if(!bmt) {
 		printk("Not enough memory\n");
 		return -ENOMEM;
 	}
-	setup_timer(&bmt->timer, timer_callback, (unsigned long)substream);
+
+	timer_setup(&bmt->timer, timer_callback, 0);
+	add_timer(&bmt->timer);
+	bmt->substream = substream;
+
 	return snd_pcm_lib_alloc_vmalloc_buffer(substream, params_buffer_bytes(params));
 }
 
@@ -283,8 +286,9 @@ static struct snd_soc_dai_ops platform_pcm_dai_ops = {
 		SNDRV_PCM_FMTBIT_U32_LE | \
 		SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE)
 
-static struct snd_soc_dai_driver platform_dai[] = {{
-	.name = "plat-dai",
+static struct snd_soc_dai_driver platform_dai[] = {
+	{
+		.name = "plat-dai",
 		.id = 0,
 		.ops = &platform_pcm_dai_ops,
 		.playback = {
@@ -300,7 +304,8 @@ static struct snd_soc_dai_driver platform_dai[] = {{
 			.channels_max	= 384,
 			.rates = STUB_RATES,
 			.formats = STUB_FORMATS,
-		},},
+		},
+	},
 };
 
 static int destroy_machine_device(struct s_plat_dev *spd)
@@ -347,17 +352,10 @@ static int s_pdev_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, spd);
 
-	ret = snd_soc_register_platform(&pdev->dev, &platform_drv);
-	if (ret) {
-		dev_err(&pdev->dev, "soc platform registration failed %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_register_component(&pdev->dev, &platform_component,
+	ret = devm_snd_soc_register_component(&pdev->dev, &soc_pcm_driver,
 			platform_dai,1);
 	if (ret) {
 		dev_err(&pdev->dev, "soc component registration failed %d\n", ret);
-		snd_soc_unregister_platform(&pdev->dev);
 		return ret;
 	}
 
@@ -379,8 +377,6 @@ static int s_pdev_remove(struct platform_device *pdev)
 	if (spd)
 		destroy_machine_device(spd);
 
-	snd_soc_unregister_component(&pdev->dev); 
-	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
 }
 

@@ -25,6 +25,7 @@ static struct snd_soc_dai_link machine_dai[] = {
                         SND_SOC_DPCM_TRIGGER_POST
                 },
 		.dpcm_playback = 1,
+		.init = machine_dai_init,
         },
 
 };
