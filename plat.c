@@ -1,3 +1,16 @@
+/*
+ * Copyright (C) 2019 Andrew <mrju.email@gail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ */
+
 #include <linux/module.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -5,14 +18,17 @@
 #include <linux/jiffies.h>
 #include <linux/time.h>
 
-#define DEBUG_MACRO "Sample Platform driver:"
-#define DEBUG_PRINT printk("%s In %s\n",DEBUG_MACRO,__func__)
-#define PDEV_NAME "s-plt-dev"
-snd_pcm_uframes_t position;
-struct s_plat_dev
-{
-	struct platform_device *mach_dev;		
-};
+#define STR(x) _STR(x)
+#define _STR(x) #x
+
+#define VERSION_PREFIX Dummy-Asoc
+#define MAJOR_VERSION 1
+#define MINOR_VERSION 0
+#define PATCH_VERSION 0
+
+#define VERSION STR(VERSION_PREFIX-MAJOR_VERSION.MINOR_VERSION.PATCH_VERSION)
+
+#define DEVICE_NAME "dummy_platform"
 
 struct buffer_manipulation_tools {
 	struct timer_list timer;
@@ -23,18 +39,6 @@ struct buffer_manipulation_tools {
 	unsigned long timer_cal; //time taken for each period
 	unsigned stop_timer; 
 };
-
-/*AUDIO FUNDAS
- * 1 Sample = Number of bits can be transferred in single channel at a time
- * 1 Frame = Total number of Samples(in bytes) can be transferred in all the channels at a time.
- * 1 Period = Number of frames, hardware can process at a time. So after processing of each period, hardware generates an interrupt.
- * Rate is called as a sample rate can be defined as amount of data can be transferred per second.
- * ALSA calculates buffer interms of frames. So in practical rate is number of frames per second.
- * Based on rate Bytes per second is calculated.
- * Then number of Bytes per second(Bps) = (Number_of_channels * Sample size in bytes) * Rate
- * Eg: Rate: 19200, Channels: 2, Format: 16 bit
- *	Then number of bytes per second(Bps) = 2 * 2 * 19200 = 76800
- */
 
 static struct snd_pcm_hardware asoc_uspace_pcm_hw = {
 	.info =		(SNDRV_PCM_INFO_MMAP |
@@ -101,14 +105,12 @@ void timer_callback(struct timer_list *t)
 
 static int asoc_platform_open(struct snd_pcm_substream *substream)
 {
-	DEBUG_PRINT;
 	snd_soc_set_runtime_hwparams(substream, &asoc_uspace_pcm_hw);
 	return 0;
 }
 
 static int asoc_platform_close(struct snd_pcm_substream *substream)
 {
-	DEBUG_PRINT;
 	return 0;
 }
 
@@ -117,7 +119,6 @@ static snd_pcm_uframes_t asoc_platform_pcm_pointer(struct snd_pcm_substream *sub
 	snd_pcm_uframes_t rbuf_pos;
 	struct buffer_manipulation_tools *bmt;
 
-	DEBUG_PRINT;
 	bmt = get_bmt(substream);
 	rbuf_pos = bytes_to_frames(substream->runtime, bmt->pos);
 	if( rbuf_pos >= substream->runtime->buffer_size)
@@ -138,25 +139,21 @@ static const struct snd_pcm_ops platform_ops =
 
 static int platform_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
-	DEBUG_PRINT;
-
 	return 0;
 }
 
 static void platform_pcm_free(struct snd_pcm *pcm)
 {
-	DEBUG_PRINT;
+	return;
 }
 
 static int platform_soc_probe(struct snd_soc_component *component)
 {
-	DEBUG_PRINT;
-
 	return 0;
 }
 
 static struct snd_soc_component_driver soc_pcm_driver = {
-	.name		= "plat-driver",
+	.name		= "cpu.pcm.i2s",
 	.probe		= platform_soc_probe,
 	.ops		= &platform_ops,
 	.pcm_new	= platform_pcm_new,
@@ -169,14 +166,13 @@ static struct snd_soc_component_driver soc_pcm_driver = {
 static int dai_pcm_startup(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	DEBUG_PRINT;
 	return 0;
 }
 
 static void dai_pcm_shutdown(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	DEBUG_PRINT;
+	return;
 }
 
 static int dai_pcm_prepare(struct snd_pcm_substream *substream,
@@ -185,7 +181,6 @@ static int dai_pcm_prepare(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct buffer_manipulation_tools *bmt = get_bmt(substream);
 	
-	DEBUG_PRINT;
 	printk("runtime->access: %u\n", runtime->access);
 	printk("runtime->format: %u\n", runtime->format);
 	printk("runtime->frame_bits: %u\n", runtime->frame_bits);
@@ -214,7 +209,6 @@ static int dai_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct buffer_manipulation_tools *bmt;
 
-	DEBUG_PRINT;
 	bmt = kmalloc(sizeof(struct buffer_manipulation_tools), GFP_KERNEL);
 	printk("substream->private_data 0x%p\n", substream->private_data);
 	substream->runtime->private_data = bmt;
@@ -233,7 +227,6 @@ static int dai_pcm_hw_params(struct snd_pcm_substream *substream,
 static int dai_pcm_hw_free(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	DEBUG_PRINT;
 	if(substream->runtime->private_data)
 		kfree(substream->runtime->private_data);
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
@@ -244,7 +237,6 @@ static int dai_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 		struct snd_soc_dai *dai)
 {
 	struct buffer_manipulation_tools *bmt = get_bmt(substream);
-	DEBUG_PRINT;
 	printk("cmd: %x\n", cmd);
 	switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
@@ -288,7 +280,7 @@ static struct snd_soc_dai_ops platform_pcm_dai_ops = {
 
 static struct snd_soc_dai_driver platform_dai[] = {
 	{
-		.name = "plat-dai",
+		.name = "cpu.dai.i2s",
 		.id = 0,
 		.ops = &platform_pcm_dai_ops,
 		.playback = {
@@ -308,115 +300,65 @@ static struct snd_soc_dai_driver platform_dai[] = {
 	},
 };
 
-static int destroy_machine_device(struct s_plat_dev *spd)
+static int dummy_platform_probe(struct platform_device *pdev)
 {
-	platform_device_unregister(spd->mach_dev);
+	return devm_snd_soc_register_component(&pdev->dev, &soc_pcm_driver,
+			platform_dai, ARRAY_SIZE(platform_dai));
+}
+
+static int dummy_platform_remove(struct platform_device *pdev)
+{
 	return 0;
 }
 
-int create_machine_device(struct s_plat_dev *spd)
-{
-	struct platform_device *pdev;
-	int ret = 0;
-
-	pdev = platform_device_alloc("sample-machine", -1);
-	if (!pdev) {
-		pr_err("In %s failed to allocate machine device\n", __func__);
-		return -ENOMEM;
-	}
-
-	ret = platform_device_add(pdev);
-	if (ret) {
-		pr_err("In %s failed to add machine device: %d\n", __func__, ret);
-		platform_device_put(pdev);
-		return ret;
-	}
-
-	spd->mach_dev = pdev;
-	dev_set_drvdata(&pdev->dev, spd);
-
-	return ret;
-}
-
-static int s_pdev_probe(struct platform_device *pdev)
-{
-	int ret;
-	struct s_plat_dev *spd;
-
-	printk("Register plaform driver for asoc\n");
-
-	spd = devm_kzalloc(&pdev->dev, sizeof(*spd), GFP_KERNEL);
-	if (!spd) { 
-		pr_err("In %s, Memory not available\n", __func__);
-		return -ENOMEM;
-	}
-	platform_set_drvdata(pdev, spd);
-
-	ret = devm_snd_soc_register_component(&pdev->dev, &soc_pcm_driver,
-			platform_dai,1);
-	if (ret) {
-		dev_err(&pdev->dev, "soc component registration failed %d\n", ret);
-		return ret;
-	}
-
-	ret = create_machine_device(spd);
-	if (ret) {
-		dev_err(&pdev->dev, "Machine devie creation failed %d\n", ret);
-		return ret;
-	}
-
-
-	return 0;
-}
-
-static int s_pdev_remove(struct platform_device *pdev)
-{
-	struct s_plat_dev *spd;
-
-	spd = platform_get_drvdata(pdev);
-	if (spd)
-		destroy_machine_device(spd);
-
-	return 0;
-}
-
-static struct platform_driver soc_plat_driver = {
-	.driver = {
-		.name = "snd-soc-myplat",
+static const struct platform_device_id dummy_pcm_platform_id[] = {
+	{
+		.name = DEVICE_NAME,
+		.driver_data = 0,
 	},
-	.probe = s_pdev_probe,
-	.remove = s_pdev_remove,
+	{
+		/* end */
+	},
+
+};
+MODULE_DEVICE_TABLE(platform, dummy_pcm_platform_id);
+
+static const struct of_device_id dummy_platform_of_match[] = {
+	{
+		.compatible = "artech,dummy_platform",
+	},
+	{
+		/* end */
+	},
+};
+MODULE_DEVICE_TABLE(of, dummy_platform_of_match);
+
+static struct platform_driver dummy_platform_drv = {
+	.probe  = dummy_platform_probe,
+	.remove = dummy_platform_remove,
+	.id_table = dummy_pcm_platform_id,
+	.driver	= {
+		.owner = THIS_MODULE,
+		.name = DEVICE_NAME,
+		.of_match_table = of_match_ptr(dummy_platform_of_match),
+	}
 };
 
-static struct platform_device *soc_plat_dev;
-static int __init pdevinit(void)
+static int __init dummy_platform_init(void)
 {
-	int ret;
-
-	pr_info("Init platform device driver\n");
-
-	soc_plat_dev =
-		platform_device_register_simple("snd-soc-myplat", -1, NULL, 0);
-	if (IS_ERR(soc_plat_dev))
-		return PTR_ERR(soc_plat_dev);
-
-	ret = platform_driver_register(&soc_plat_driver);
-	if (ret != 0) {
-		platform_device_unregister(soc_plat_dev);
-		return ret;
-	}
-	return 0;	
+	return platform_driver_register(&dummy_platform_drv);
 }
 
-static void __exit  pdevexit(void)
+static void __exit  dummy_platform_exit(void)
 {
-	pr_info("Exit platform device driver\n");
-	platform_driver_unregister(&soc_plat_driver);
-	platform_device_unregister(soc_plat_dev);
+	platform_driver_unregister(&dummy_platform_drv);
 }
 
-module_init(pdevinit);
-module_exit(pdevexit);
-MODULE_DESCRIPTION("Sample ASoC Platform driver");
-MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:snd-soc-plat");
+module_init(dummy_platform_init);
+module_exit(dummy_platform_exit);
+
+MODULE_ALIAS("dummy-asoc");
+MODULE_LICENSE("GPL");
+MODULE_VERSION(VERSION);
+MODULE_DESCRIPTION("Linux is not Unix");
+MODULE_AUTHOR("andrew, mrju.email@gmail.com");

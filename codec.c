@@ -1,3 +1,16 @@
+/*
+ * Copyright (C) 2019 Andrew <mrju.email@gail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ */
+
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -9,86 +22,86 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
+#define STR(x) _STR(x)
+#define _STR(x) #x
+
+#define VERSION_PREFIX Dummy-Asoc
+#define MAJOR_VERSION 1
+#define MINOR_VERSION 0
+#define PATCH_VERSION 0
+
+#define VERSION STR(VERSION_PREFIX-MAJOR_VERSION.MINOR_VERSION.PATCH_VERSION)
+
 #define CODEC_STEREO_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 #define CODEC_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
+#define DEVICE_NAME "dummy_codec"
 
 static int codec_probe(struct snd_soc_component *codec)
 {
-	pr_info("In codec probe\n");
 	return 0;
 }
 
 static void codec_remove(struct snd_soc_component *codec)
 {
-	pr_info("In codec_remove\n");
+	return;
 }
 
 static int codec_suspend(struct snd_soc_component *codec)
 {
-	pr_info("In codec_suspend\n");
 	return 0;
 }
 
 static int codec_resume(struct snd_soc_component *codec)
 {
-	pr_info("In codec_resume\n");
 	return 0;
 }
 
-/*Dai driver ops*/
 static int codec_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	pr_info("In codec_set_dai_fmt\n");
 	return 0;
 }
 
 static int codec_set_dai_sysclk(struct snd_soc_dai *dai,
-				int clk_id, unsigned int freq, int dir)
+			int clk_id, unsigned int freq, int dir)
 {
-	pr_info("In codec_set_dai_sysclk\n");
 	return 0;
 }
 
 static int codec_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 {
-	pr_info("In codec_set_bclk_ratio\n");
 	return 0;
 }
 
 static int codec_set_bias_level(struct snd_soc_component *codec,
-				enum snd_soc_bias_level level)
+			enum snd_soc_bias_level level)
 {
-	pr_info("In codec_set_bias_level\n");
 	return 0;
 }
 
 static int codec_hw_params(struct snd_pcm_substream *substream,
-			    struct snd_pcm_hw_params *params,
-			    struct snd_soc_dai *dai)
+			struct snd_pcm_hw_params *params,
+			struct snd_soc_dai *dai)
 {
-	printk("In codec_hw_params\n");
 	return 0;
 }
 
 static int codec_pcm_startup(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
+			struct snd_soc_dai *dai)
 {
-	printk("In %s\n", __func__);
 	return 0;
 }
 
 static void codec_pcm_shutdown(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
+			struct snd_soc_dai *dai)
 {
-	printk("In %s\n", __func__);
+	return;
 }
 
 static int codec_pcm_prepare(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
+			struct snd_soc_dai *dai)
 {
-	printk("In %s\n", __func__);
 	return 0;
 }
 
@@ -103,19 +116,18 @@ static const struct snd_soc_dai_ops codec_dai_ops = {
 };
 
 static struct snd_soc_dai_driver codec_dai[] = {
-
 	{
-		.name = "codec-dai1",
+		.name = "codec.dai.i2s", // seems to not to be used for matching
 		.id = 0,
 		.playback = {
-			.stream_name = "dai1 Playback",
+			.stream_name = "i2s Playback",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = CODEC_STEREO_RATES,
 			.formats = CODEC_FORMATS,
 		},
 		.capture = {
-			.stream_name = "dai1 Capture",
+			.stream_name = "i2s Capture",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = CODEC_STEREO_RATES,
@@ -123,81 +135,77 @@ static struct snd_soc_dai_driver codec_dai[] = {
 		},
 		.ops = &codec_dai_ops,
 		.symmetric_rates = 1,
-	}
+	},
 };
 
 static struct snd_soc_component_driver soc_codec_driver = {
-	/*driver ops*/
 	.probe = codec_probe,
 	.remove = codec_remove,
 	.suspend = codec_suspend,
 	.resume = codec_resume,
 	.set_bias_level = codec_set_bias_level,
-	// .idle_bias_off = true,
-
-	/*
-	.component_driver = {
-		.controls = NULL,
-		.num_controls = 0,
-	},
-	*/
 };
 
 int snd_codec_probe(struct platform_device *pdev)
 {
-	int ret = 0;
-	printk("Hi I am Codec Driver\n\n");
-	pr_info("Now I am doing all codec configuration\n");
-	ret = devm_snd_soc_register_component(&pdev->dev,
+	return devm_snd_soc_register_component(&pdev->dev,
 			&soc_codec_driver, codec_dai, ARRAY_SIZE(codec_dai));
-	printk("ret %d\n",ret);
-	return 0;
 }
 
 static int snd_codec_remove(struct platform_device *pdev)
 {
-	// snd_soc_unregister_platform(&pdev->dev);
-	// snd_soc_unregister_codec(&pdev->dev);
-
 	return 0;
 }
 
-static struct platform_driver soc_dummy_driver = {
-	.driver = {
-		.name = "snd-soc-mycodec",
+static const struct platform_device_id dummy_codec_platform_id[] = {
+	{
+		.name = DEVICE_NAME,
+		.driver_data = 0,
 	},
-	.probe = snd_codec_probe,
+	{
+		/* end */
+	},
+
+};
+MODULE_DEVICE_TABLE(platform, dummy_codec_platform_id);
+
+static const struct of_device_id dummy_codec_of_match[] = {
+	{
+		.compatible = "artech,dummy_codec",
+	},
+	{
+		/* end */
+	},
+};
+MODULE_DEVICE_TABLE(of, dummy_codec_of_match);
+
+static struct platform_driver dummy_codec_drv = {
+	.probe  = snd_codec_probe,
 	.remove = snd_codec_remove,
+	.id_table = dummy_codec_platform_id,
+	.driver	= {
+		.owner = THIS_MODULE,
+		.name = DEVICE_NAME,
+		.of_match_table = of_match_ptr(dummy_codec_of_match),
+	}
 };
 
-static struct platform_device *soc_dummy_dev;
-
-int __init codec_init(void)
+int __init dummy_codec_init(void)
 {
-	int ret;
+	return platform_driver_register(&dummy_codec_drv);
 
-	soc_dummy_dev =
-		platform_device_register_simple("snd-soc-mycodec", -1, NULL, 0);
-	if (IS_ERR(soc_dummy_dev))
-		return PTR_ERR(soc_dummy_dev);
-
-	ret = platform_driver_register(&soc_dummy_driver);
-	if (ret != 0)
-		platform_device_unregister(soc_dummy_dev);
-
-	return ret;
 }
 
-void __exit codec_exit(void)
+void __exit dummy_codec_exit(void)
 {
-	platform_device_unregister(soc_dummy_dev);
-	platform_driver_unregister(&soc_dummy_driver);
+	platform_driver_unregister(&dummy_codec_drv);
 }
 
-module_init(codec_init);
-module_exit(codec_exit);
+module_init(dummy_codec_init);
+module_exit(dummy_codec_exit);
 
+MODULE_ALIAS("dummy-asoc");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("JAIKRISHNA");
-MODULE_DESCRIPTION("My first codec driver");
-
+MODULE_VERSION(VERSION);
+MODULE_DESCRIPTION("Linux is not Unix");
+MODULE_AUTHOR("andrew, mrju.email@gmail.com");
