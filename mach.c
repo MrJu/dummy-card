@@ -31,6 +31,7 @@
 
 static int dummy_dai_link_init(struct snd_soc_pcm_runtime *rtd)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return 0;
 }
 
@@ -73,6 +74,7 @@ static int dummy_card_probe(struct platform_device *pdev)
 
 static int dummy_card_remove(struct platform_device *pdev)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return 0;
 }
 

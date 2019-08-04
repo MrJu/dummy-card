@@ -40,43 +40,51 @@
 
 static int codec_probe(struct snd_soc_component *codec)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return 0;
 }
 
 static void codec_remove(struct snd_soc_component *codec)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return;
 }
 
 static int codec_suspend(struct snd_soc_component *codec)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return 0;
 }
 
 static int codec_resume(struct snd_soc_component *codec)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return 0;
 }
 
 static int codec_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return 0;
 }
 
 static int codec_set_dai_sysclk(struct snd_soc_dai *dai,
 			int clk_id, unsigned int freq, int dir)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return 0;
 }
 
 static int codec_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return 0;
 }
 
 static int codec_set_bias_level(struct snd_soc_component *codec,
 			enum snd_soc_bias_level level)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return 0;
 }
 
@@ -84,24 +92,127 @@ static int codec_hw_params(struct snd_pcm_substream *substream,
 			struct snd_pcm_hw_params *params,
 			struct snd_soc_dai *dai)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
+
+	printk("Andrew: %s %s %d runtime->access = %u\n",
+			__FILE__, __func__, __LINE__, runtime->access);
+	printk("Andrew: %s %s %d runtime->format = %u\n",
+			__FILE__, __func__, __LINE__, runtime->format);
+	printk("Andrew: %s %s %d runtime->frame_bits = %u\n",
+			__FILE__, __func__, __LINE__, runtime->frame_bits);
+	printk("Andrew: %s %s %d runtime->rate = %u\n",
+			__FILE__, __func__, __LINE__, runtime->rate);
+	printk("Andrew: %s %s %d runtime->channels = %u\n",
+			__FILE__, __func__, __LINE__, runtime->channels);
+	printk("Andrew: %s %s %d runtime->period_size = %lu\n",
+			__FILE__, __func__, __LINE__, runtime->period_size);
+	printk("Andrew: %s %s %d runtime->period_size = %u\n",
+			__FILE__, __func__, __LINE__, frames_to_bytes(runtime, runtime->period_size));
+	printk("Andrew: %s %s %d runtime->periods = %u\n",
+			__FILE__, __func__, __LINE__, runtime->periods);
+	printk("Andrew: %s %s %d runtime->buffer_size_in_frames = %lu\n",
+			__FILE__, __func__, __LINE__, runtime->buffer_size);
+	printk("Andrew: %s %s %d runtime->buffer_size_in_bytes = %u\n",
+			__FILE__, __func__, __LINE__, frames_to_bytes(runtime, runtime->buffer_size));
+	printk("Andrew: %s %s %d dummy-pcm:buffer_size_in_frames = %ld,"
+			"dma_area = %p, dma_bytes = %zu\n", __FILE__, __func__, __LINE__,
+			runtime->buffer_size, runtime->dma_area, runtime->dma_bytes);
+	printk("Andrew: %s %s %d dma_area = 0x%p",
+			__FILE__, __func__, __LINE__, runtime->dma_area);
+	printk("Andrew: %s %s %d dma_addr = 0x%p",
+			__FILE__, __func__, __LINE__, runtime->dma_addr);
+	printk("Andrew: %s %s %d dma_buffer_p = 0x%p",
+			__FILE__, __func__, __LINE__, runtime->dma_buffer_p);
+
 	return 0;
 }
 
 static int codec_pcm_startup(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
+
+	printk("Andrew: %s %s %d runtime->access = %u\n",
+			__FILE__, __func__, __LINE__, runtime->access);
+	printk("Andrew: %s %s %d runtime->format = %u\n",
+			__FILE__, __func__, __LINE__, runtime->format);
+	printk("Andrew: %s %s %d runtime->frame_bits = %u\n",
+			__FILE__, __func__, __LINE__, runtime->frame_bits);
+	printk("Andrew: %s %s %d runtime->rate = %u\n",
+			__FILE__, __func__, __LINE__, runtime->rate);
+	printk("Andrew: %s %s %d runtime->channels = %u\n",
+			__FILE__, __func__, __LINE__, runtime->channels);
+	printk("Andrew: %s %s %d runtime->period_size = %lu\n",
+			__FILE__, __func__, __LINE__, runtime->period_size);
+	printk("Andrew: %s %s %d runtime->period_size = %u\n",
+			__FILE__, __func__, __LINE__, frames_to_bytes(runtime, runtime->period_size));
+	printk("Andrew: %s %s %d runtime->periods = %u\n",
+			__FILE__, __func__, __LINE__, runtime->periods);
+	printk("Andrew: %s %s %d runtime->buffer_size_in_frames = %lu\n",
+			__FILE__, __func__, __LINE__, runtime->buffer_size);
+	printk("Andrew: %s %s %d runtime->buffer_size_in_bytes = %u\n",
+			__FILE__, __func__, __LINE__, frames_to_bytes(runtime, runtime->buffer_size));
+	printk("Andrew: %s %s %d dummy-pcm:buffer_size_in_frames = %ld,"
+			"dma_area = %p, dma_bytes = %zu\n", __FILE__, __func__, __LINE__,
+			runtime->buffer_size, runtime->dma_area, runtime->dma_bytes);
+	printk("Andrew: %s %s %d dma_area = 0x%p",
+			__FILE__, __func__, __LINE__, runtime->dma_area);
+	printk("Andrew: %s %s %d dma_addr = 0x%p",
+			__FILE__, __func__, __LINE__, runtime->dma_addr);
+	printk("Andrew: %s %s %d dma_buffer_p = 0x%p",
+			__FILE__, __func__, __LINE__, runtime->dma_buffer_p);
+
 	return 0;
 }
 
 static void codec_pcm_shutdown(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return;
 }
 
 static int codec_pcm_prepare(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
+
+	printk("Andrew: %s %s %d runtime->access = %u\n",
+			__FILE__, __func__, __LINE__, runtime->access);
+	printk("Andrew: %s %s %d runtime->format = %u\n",
+			__FILE__, __func__, __LINE__, runtime->format);
+	printk("Andrew: %s %s %d runtime->frame_bits = %u\n",
+			__FILE__, __func__, __LINE__, runtime->frame_bits);
+	printk("Andrew: %s %s %d runtime->rate = %u\n",
+			__FILE__, __func__, __LINE__, runtime->rate);
+	printk("Andrew: %s %s %d runtime->channels = %u\n",
+			__FILE__, __func__, __LINE__, runtime->channels);
+	printk("Andrew: %s %s %d runtime->period_size = %lu\n",
+			__FILE__, __func__, __LINE__, runtime->period_size);
+	printk("Andrew: %s %s %d runtime->period_size = %u\n",
+			__FILE__, __func__, __LINE__, frames_to_bytes(runtime, runtime->period_size));
+	printk("Andrew: %s %s %d runtime->periods = %u\n",
+			__FILE__, __func__, __LINE__, runtime->periods);
+	printk("Andrew: %s %s %d runtime->buffer_size_in_frames = %lu\n",
+			__FILE__, __func__, __LINE__, runtime->buffer_size);
+	printk("Andrew: %s %s %d runtime->buffer_size_in_bytes = %u\n",
+			__FILE__, __func__, __LINE__, frames_to_bytes(runtime, runtime->buffer_size));
+	printk("Andrew: %s %s %d dummy-pcm:buffer_size_in_frames = %ld,"
+			"dma_area = %p, dma_bytes = %zu\n", __FILE__, __func__, __LINE__,
+			runtime->buffer_size, runtime->dma_area, runtime->dma_bytes);
+	printk("Andrew: %s %s %d dma_area = 0x%p",
+			__FILE__, __func__, __LINE__, runtime->dma_area);
+	printk("Andrew: %s %s %d dma_addr = 0x%p",
+			__FILE__, __func__, __LINE__, runtime->dma_addr);
+	printk("Andrew: %s %s %d dma_buffer_p = 0x%p",
+			__FILE__, __func__, __LINE__, runtime->dma_buffer_p);
+
 	return 0;
 }
 
@@ -148,12 +259,14 @@ static struct snd_soc_component_driver soc_codec_driver = {
 
 int snd_codec_probe(struct platform_device *pdev)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return devm_snd_soc_register_component(&pdev->dev,
 			&soc_codec_driver, codec_dai, ARRAY_SIZE(codec_dai));
 }
 
 static int snd_codec_remove(struct platform_device *pdev)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return 0;
 }
 
@@ -192,6 +305,7 @@ static struct platform_driver dummy_codec_drv = {
 
 int __init dummy_codec_init(void)
 {
+	printk("Andrew: %s %s %d\n", __FILE__, __func__, __LINE__);
 	return platform_driver_register(&dummy_codec_drv);
 
 }

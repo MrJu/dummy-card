@@ -15,6 +15,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/time.h>
 
@@ -29,6 +30,13 @@
 #define VERSION STR(VERSION_PREFIX-MAJOR_VERSION.MINOR_VERSION.PATCH_VERSION)
 
 #define DEVICE_NAME "dummy_platform"
+
+#define DUMMY_SND_MIN_PERIODS 2
+#define DUMMY_SND_MAX_PERIODS 16
+#define DUMMY_SND_MIN_PERIOD_BYTES 256
+#define DUMMY_SND_MAX_PERIOD_BYTES 0x8000
+#define DUMMY_SND_MAX_BUFFER_BYTES (DUMMY_SND_MAX_PERIOD_BYTES \
+						* DUMMY_SND_MAX_PERIODS)
 
 struct buffer_manipulation_tools {
 	struct timer_list timer;
@@ -137,14 +145,82 @@ static const struct snd_pcm_ops platform_ops =
 	.mmap = snd_pcm_lib_default_mmap,
 };
 
+static inline void *dummy_dma_alloc_coherent(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, gfp_t gfp)
+{
+	*dma_handle = NULL;
+	return kzalloc(size, GFP_KERNEL);
+}
+
+static inline void dummy_dma_free_coherent(struct device *dev, size_t size,
+		void *cpu_addr, dma_addr_t dma_handle)
+{
+	kfree(cpu_addr);
+}
+
+static int dummy_dma_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
+{
+	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
+	struct snd_dma_buffer *buf = &substream->dma_buffer;
+	size_t size = DUMMY_SND_MAX_BUFFER_BYTES;
+
+	buf->dev.type = SNDRV_DMA_TYPE_DEV;
+	buf->dev.dev = pcm->card->dev;
+	buf->area = dummy_dma_alloc_coherent(pcm->card->dev, size,
+			&buf->addr, GFP_KERNEL);
+	if (!buf->area)
+		return -ENOMEM;
+	buf->bytes = size;
+	buf->private_data = NULL;
+
+	return 0;
+}
+
 static int platform_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_pcm *pcm = rtd->pcm;
+	int ret;
+
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
+		ret = dummy_dma_preallocate_dma_buffer(pcm,
+				SNDRV_PCM_STREAM_PLAYBACK);
+		if (ret)
+			return ret;
+	}
+
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
+		ret = dummy_dma_preallocate_dma_buffer(pcm,
+				SNDRV_PCM_STREAM_CAPTURE);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
 static void platform_pcm_free(struct snd_pcm *pcm)
 {
-	return;
+	struct snd_pcm_substream *substream;
+	struct snd_dma_buffer *buf;
+	int stream;
+
+	for (stream = 0; stream < 2; stream++) {
+		substream = pcm->streams[stream].substream;
+		if (!substream)
+			continue;
+		buf = &substream->dma_buffer;
+		if (!buf->area)
+			continue;
+
+		dummy_dma_free_coherent(pcm->card->dev, buf->bytes,
+				buf->area, buf->addr);
+		buf->area = NULL;
+	}
 }
 
 static int platform_soc_probe(struct snd_soc_component *component)
@@ -208,6 +284,7 @@ static int dai_pcm_hw_params(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
 	struct buffer_manipulation_tools *bmt;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	bmt = kmalloc(sizeof(struct buffer_manipulation_tools), GFP_KERNEL);
 	printk("substream->private_data 0x%p\n", substream->private_data);
@@ -217,11 +294,14 @@ static int dai_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -ENOMEM;
 	}
 
+	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
+	runtime->dma_bytes = params_buffer_bytes(params);
+
 	timer_setup(&bmt->timer, timer_callback, 0);
 	add_timer(&bmt->timer);
 	bmt->substream = substream;
 
-	return snd_pcm_lib_alloc_vmalloc_buffer(substream, params_buffer_bytes(params));
+	// return snd_pcm_lib_alloc_vmalloc_buffer(substream, params_buffer_bytes(params));
 }
 
 static int dai_pcm_hw_free(struct snd_pcm_substream *substream,
@@ -229,7 +309,7 @@ static int dai_pcm_hw_free(struct snd_pcm_substream *substream,
 {
 	if(substream->runtime->private_data)
 		kfree(substream->runtime->private_data);
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
+	// return snd_pcm_lib_free_vmalloc_buffer(substream);
 	return 0;
 }
 
