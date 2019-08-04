@@ -632,6 +632,30 @@ struct snd_soc_dai_ops {
 	snd_pcm_sframes_t (*delay)(struct snd_pcm_substream *,
 		struct snd_soc_dai *);
 };
+
+struct snd_soc_cdai_ops {
+	/*
+	 * for compress ops
+	 */
+	int (*startup)(struct snd_compr_stream *,
+			struct snd_soc_dai *);
+	int (*shutdown)(struct snd_compr_stream *,
+			struct snd_soc_dai *);
+	int (*set_params)(struct snd_compr_stream *,
+			struct snd_compr_params *, struct snd_soc_dai *);
+	int (*get_params)(struct snd_compr_stream *,
+			struct snd_codec *, struct snd_soc_dai *);
+	int (*set_metadata)(struct snd_compr_stream *,
+			struct snd_compr_metadata *, struct snd_soc_dai *);
+	int (*get_metadata)(struct snd_compr_stream *,
+			struct snd_compr_metadata *, struct snd_soc_dai *);
+	int (*trigger)(struct snd_compr_stream *, int,
+			struct snd_soc_dai *);
+	int (*pointer)(struct snd_compr_stream *,
+			struct snd_compr_tstamp *, struct snd_soc_dai *);
+	int (*ack)(struct snd_compr_stream *, size_t,
+			struct snd_soc_dai *);
+};
 #endif
 
 #if 0
@@ -698,6 +722,21 @@ static struct snd_soc_dai_ops platform_pcm_dai_ops = {
 	 * Optional.
 	 */
 	.delay					= NULL,
+};
+
+static struct snd_soc_cdai_ops dummy_pcm_cdai_ops = {
+	/*
+	 * for compress ops
+	 */
+	.startup			= NULL,
+	.shutdown			= NULL,
+	.set_params			= NULL,
+	.get_params			= NULL,
+	.set_metadata		= NULL,
+	.get_metadata		= NULL,
+	.trigger			= NULL,
+	.pointer			= NULL,
+	.ack				= NULL,
 };
 
 #define STUB_RATES	SNDRV_PCM_RATE_8000_192000
@@ -843,7 +882,7 @@ static struct snd_soc_dai_driver platform_dai[] = {
 
 		/* ops */
 		.ops					= &platform_pcm_dai_ops,
-		.cops					= NULL,
+		.cops					= &dummy_pcm_cdai_ops,
 
 		/* DAI capabilities */
 		.capture	= {
