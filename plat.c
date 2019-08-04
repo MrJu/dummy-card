@@ -138,6 +138,37 @@ static snd_pcm_uframes_t asoc_platform_pcm_pointer(struct snd_pcm_substream *sub
 	return rbuf_pos;
 }
 
+#if 0
+struct snd_pcm_ops {
+	int (*open)(struct snd_pcm_substream *substream);
+	int (*close)(struct snd_pcm_substream *substream);
+	int (*ioctl)(struct snd_pcm_substream * substream,
+		     unsigned int cmd, void *arg);
+	int (*hw_params)(struct snd_pcm_substream *substream,
+			 struct snd_pcm_hw_params *params);
+	int (*hw_free)(struct snd_pcm_substream *substream);
+	int (*prepare)(struct snd_pcm_substream *substream);
+	int (*trigger)(struct snd_pcm_substream *substream, int cmd);
+	snd_pcm_uframes_t (*pointer)(struct snd_pcm_substream *substream);
+	int (*get_time_info)(struct snd_pcm_substream *substream,
+			struct timespec *system_ts, struct timespec *audio_ts,
+			struct snd_pcm_audio_tstamp_config *audio_tstamp_config,
+			struct snd_pcm_audio_tstamp_report *audio_tstamp_report);
+	int (*fill_silence)(struct snd_pcm_substream *substream, int channel,
+			    unsigned long pos, unsigned long bytes);
+	int (*copy_user)(struct snd_pcm_substream *substream, int channel,
+			 unsigned long pos, void __user *buf,
+			 unsigned long bytes);
+	int (*copy_kernel)(struct snd_pcm_substream *substream, int channel,
+			   unsigned long pos, void *buf, unsigned long bytes);
+	struct page *(*page)(struct snd_pcm_substream *substream,
+			     unsigned long offset);
+	int (*mmap)(struct snd_pcm_substream *substream, struct vm_area_struct *vma);
+	int (*ack)(struct snd_pcm_substream *substream);
+};
+#endif
+
+#if 0
 static const struct snd_pcm_ops platform_ops =
 {
 	.open = asoc_platform_open,
@@ -146,6 +177,27 @@ static const struct snd_pcm_ops platform_ops =
 	.pointer = asoc_platform_pcm_pointer,
 	.mmap = snd_pcm_lib_default_mmap,
 };
+#endif
+
+static const struct snd_pcm_ops platform_ops =
+	.open			= asoc_platform_open,
+	.close			= asoc_platform_close,
+	.ioctl			= snd_pcm_lib_ioctl,
+	.hw_params		= NULL,
+	.hw_free		= NULL,
+	.prepare		= NULL,
+	.trigger		= NULL,
+	.pointer		= asoc_platform_pcm_pointer,
+	.get_time_info	= NULL,
+	.fill_silence	= NULL,
+	.copy_user		= NULL,
+	.copy_kernel	= NULL,
+	.page			= NULL,
+	.mmap			= snd_pcm_lib_default_mmap,
+	.ack			= NULL,
+};
+
+#if 0
 
 static inline void *dummy_dma_alloc_coherent(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t gfp)
@@ -230,18 +282,178 @@ static void platform_pcm_free(struct snd_pcm *pcm)
 		buf->area = NULL;
 	}
 }
+#endif
+
+static int platform_pcm_new(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
+	size_t size = dummy_dma_snd_hw.buffer_bytes_max;
+
+	snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
+			SNDRV_DMA_TYPE_CONTINUOUS,
+			snd_dma_continuous_data(GFP_KERNEL), size, size);
+	return 0;
+}
+
+static void platform_pcm_free(struct snd_pcm *pcm)
+{
+	snd_pcm_lib_preallocate_free_for_all(pcm);
+}
 
 static int platform_soc_probe(struct snd_soc_component *component)
 {
 	return 0;
 }
 
+#if 0
+struct snd_soc_component_driver {
+	const char *name;
+
+	/* Default control and setup, added after probe() is run */
+	const struct snd_kcontrol_new *controls;
+	unsigned int num_controls;
+	const struct snd_soc_dapm_widget *dapm_widgets;
+	unsigned int num_dapm_widgets;
+	const struct snd_soc_dapm_route *dapm_routes;
+	unsigned int num_dapm_routes;
+
+	int (*probe)(struct snd_soc_component *);
+	void (*remove)(struct snd_soc_component *);
+	int (*suspend)(struct snd_soc_component *);
+	int (*resume)(struct snd_soc_component *);
+
+	unsigned int (*read)(struct snd_soc_component *, unsigned int);
+	int (*write)(struct snd_soc_component *, unsigned int, unsigned int);
+
+	/* pcm creation and destruction */
+	int (*pcm_new)(struct snd_soc_pcm_runtime *);
+	void (*pcm_free)(struct snd_pcm *);
+
+	/* component wide operations */
+	int (*set_sysclk)(struct snd_soc_component *component,
+			  int clk_id, int source, unsigned int freq, int dir);
+	int (*set_pll)(struct snd_soc_component *component, int pll_id,
+		       int source, unsigned int freq_in, unsigned int freq_out);
+	int (*set_jack)(struct snd_soc_component *component,
+			struct snd_soc_jack *jack,  void *data);
+
+	/* DT */
+	int (*of_xlate_dai_name)(struct snd_soc_component *component,
+				 struct of_phandle_args *args,
+				 const char **dai_name);
+	int (*of_xlate_dai_id)(struct snd_soc_component *comment,
+			       struct device_node *endpoint);
+	void (*seq_notifier)(struct snd_soc_component *, enum snd_soc_dapm_type,
+		int subseq);
+	int (*stream_event)(struct snd_soc_component *, int event);
+	int (*set_bias_level)(struct snd_soc_component *component,
+			      enum snd_soc_bias_level level);
+
+	const struct snd_pcm_ops *ops;
+	const struct snd_compr_ops *compr_ops;
+
+	/* probe ordering - for components with runtime dependencies */
+	int probe_order;
+	int remove_order;
+
+	/*
+	 * signal if the module handling the component should not be removed
+	 * if a pcm is open. Setting this would prevent the module
+	 * refcount being incremented in probe() but allow it be incremented
+	 * when a pcm is opened and decremented when it is closed.
+	 */
+	unsigned int module_get_upon_open:1;
+
+	/* bits */
+	unsigned int idle_bias_on:1;
+	unsigned int suspend_bias_off:1;
+	unsigned int use_pmdown_time:1; /* care pmdown_time at stop */
+	unsigned int endianness:1;
+	unsigned int non_legacy_dai_naming:1;
+
+	/* this component uses topology and ignore machine driver FEs */
+	const char *ignore_machine;
+	const char *topology_name_prefix;
+	int (*be_hw_params_fixup)(struct snd_soc_pcm_runtime *rtd,
+				  struct snd_pcm_hw_params *params);
+	bool use_dai_pcm_id;	/* use the DAI link PCM ID as PCM device number */
+	int be_pcm_base;	/* base device ID for all BE PCMs */
+};
+#endif
+
+#if 0
 static struct snd_soc_component_driver soc_pcm_driver = {
-	.name		= "cpu.pcm.i2s",
+	.name		= "cpu.pcm.i2s", // DRV_NAME
 	.probe		= platform_soc_probe,
-	.ops		= &platform_ops,
 	.pcm_new	= platform_pcm_new,
 	.pcm_free	= platform_pcm_free,
+	.ops		= &platform_ops,
+};
+#endif
+
+struct snd_soc_component_driver soc_pcm_driver = {
+	.name				= "cpu.pcm.i2s", // DRV_NAME
+
+	/* Default control and setup, added after probe() is run */
+	.controls			= NULL,
+	.num_controls		= 0,
+	.dapm_widgets		= NULL,
+	.num_dapm_widgets	= 0,
+	.dapm_routes		= NULL,
+	.num_dapm_routes	= 0,
+
+	.probe				= platform_soc_probe,
+	.remove				= NULL,
+	.suspend			= NULL,
+	.resume				= NULL,
+
+	.read				= NULL,
+	.write				= NULL,
+
+	/* pcm creation and destruction */
+	.pcm_new			= platform_pcm_new,
+	.pcm_free			= platform_pcm_free,
+
+	/* component wide operations */
+	.set_sysclk			= NULL,
+	.set_pll			= NULL,
+	.set_jack			= NULL,
+
+	/* DT */
+	.of_xlate_dai_name	= NULL,
+	.of_xlate_dai_id	= NULL,
+	.seq_notifier		= NULL,
+	.stream_event		= NULL,
+	.set_bias_level		= NULL,
+
+	.ops				= &platform_ops,
+	.compr_ops			= NULL,
+
+	/* probe ordering - for components with runtime dependencies */
+	.probe_order		= 0,
+	.remove_order		= 0,
+
+	/*
+	 * signal if the module handling the component should not be removed
+	 * if a pcm is open. Setting this would prevent the module
+	 * refcount being incremented in probe() but allow it be incremented
+	 * when a pcm is opened and decremented when it is closed.
+	 */
+	.module_get_upon_open	= 0,
+
+	/* bits */
+	.idle_bias_on		= 0,
+	.suspend_bias_off	= 0,
+	.use_pmdown_time	= 0, /* care pmdown_time at stop */
+	.endianness			= 0,
+	.non_legacy_dai_naming	= 0,
+
+	/* this component uses topology and ignore machine driver FEs */
+	.ignore_machine	= NULL,
+	.topology_name_prefix	= NULL,
+	.be_hw_params_fixup	= NULL,
+	.use_dai_pcm_id		= 0,	/* use the DAI link PCM ID as PCM device number */
+	.be_pcm_base		= 0,	/* base device ID for all BE PCMs */
 };
 
 /*
@@ -348,6 +560,81 @@ static int dai_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
+#if 0
+struct snd_soc_dai_ops {
+	/*
+	 * DAI clocking configuration, all optional.
+	 * Called by soc_card drivers, normally in their hw_params.
+	 */
+	int (*set_sysclk)(struct snd_soc_dai *dai,
+		int clk_id, unsigned int freq, int dir);
+	int (*set_pll)(struct snd_soc_dai *dai, int pll_id, int source,
+		unsigned int freq_in, unsigned int freq_out);
+	int (*set_clkdiv)(struct snd_soc_dai *dai, int div_id, int div);
+	int (*set_bclk_ratio)(struct snd_soc_dai *dai, unsigned int ratio);
+
+	/*
+	 * DAI format configuration
+	 * Called by soc_card drivers, normally in their hw_params.
+	 */
+	int (*set_fmt)(struct snd_soc_dai *dai, unsigned int fmt);
+	int (*xlate_tdm_slot_mask)(unsigned int slots,
+		unsigned int *tx_mask, unsigned int *rx_mask);
+	int (*set_tdm_slot)(struct snd_soc_dai *dai,
+		unsigned int tx_mask, unsigned int rx_mask,
+		int slots, int slot_width);
+	int (*set_channel_map)(struct snd_soc_dai *dai,
+		unsigned int tx_num, unsigned int *tx_slot,
+		unsigned int rx_num, unsigned int *rx_slot);
+	int (*get_channel_map)(struct snd_soc_dai *dai,
+			unsigned int *tx_num, unsigned int *tx_slot,
+			unsigned int *rx_num, unsigned int *rx_slot);
+	int (*set_tristate)(struct snd_soc_dai *dai, int tristate);
+
+	int (*set_sdw_stream)(struct snd_soc_dai *dai,
+			void *stream, int direction);
+	/*
+	 * DAI digital mute - optional.
+	 * Called by soc-core to minimise any pops.
+	 */
+	int (*digital_mute)(struct snd_soc_dai *dai, int mute);
+	int (*mute_stream)(struct snd_soc_dai *dai, int mute, int stream);
+
+	/*
+	 * ALSA PCM audio operations - all optional.
+	 * Called by soc-core during audio PCM operations.
+	 */
+	int (*startup)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
+	void (*shutdown)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
+	int (*hw_params)(struct snd_pcm_substream *,
+		struct snd_pcm_hw_params *, struct snd_soc_dai *);
+	int (*hw_free)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
+	int (*prepare)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
+	/*
+	 * NOTE: Commands passed to the trigger function are not necessarily
+	 * compatible with the current state of the dai. For example this
+	 * sequence of commands is possible: START STOP STOP.
+	 * So do not unconditionally use refcounting functions in the trigger
+	 * function, e.g. clk_enable/disable.
+	 */
+	int (*trigger)(struct snd_pcm_substream *, int,
+		struct snd_soc_dai *);
+	int (*bespoke_trigger)(struct snd_pcm_substream *, int,
+		struct snd_soc_dai *);
+	/*
+	 * For hardware based FIFO caused delay reporting.
+	 * Optional.
+	 */
+	snd_pcm_sframes_t (*delay)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
+};
+#endif
+
+#if 0
 static struct snd_soc_dai_ops platform_pcm_dai_ops = {
 	.startup = dai_pcm_startup,
 	.shutdown = dai_pcm_shutdown,
@@ -355,6 +642,62 @@ static struct snd_soc_dai_ops platform_pcm_dai_ops = {
 	.hw_params = dai_pcm_hw_params,
 	.hw_free = dai_pcm_hw_free,
 	.trigger = dai_pcm_trigger,
+};
+#endif
+
+static struct snd_soc_dai_ops platform_pcm_dai_ops = {
+	/*
+	 * DAI clocking configuration, all optional.
+	 * Called by soc_card drivers, normally in their hw_params.
+	 */
+	.set_sysclk				= NULL,
+	.set_pll				= NULL,
+	.set_clkdiv				= NULL,
+	.set_bclk_ratio			= NULL,
+
+	/*
+	 * DAI format configuration
+	 * Called by soc_card drivers, normally in their hw_params.
+	 */
+	.set_fmt				= NULL,
+	.xlate_tdm_slot_mask	= NULL,
+	.set_tdm_slot			= NULL,
+	.set_channel_map		= NULL,
+	.get_channel_map		= NULL,
+	.set_tristate			= NULL,
+
+	.set_sdw_stream			= NULL,
+	/*
+	 * DAI digital mute - optional.
+	 * Called by soc-core to minimise any pops.
+	 */
+	.digital_mute			= NULL,
+	.mute_stream			= NULL,
+
+	/*
+	 * ALSA PCM audio operations - all optional.
+	 * Called by soc-core during audio PCM operations.
+	 */
+
+	.startup				= dai_pcm_startup,
+	.shutdown				= dai_pcm_shutdown,
+	.hw_params				= dai_pcm_hw_params,
+	.hw_free				= dai_pcm_hw_free,
+	.prepare				= dai_pcm_prepare,
+	/*
+	 * NOTE: Commands passed to the trigger function are not necessarily
+	 * compatible with the current state of the dai. For example this
+	 * sequence of commands is possible: START STOP STOP.
+	 * So do not unconditionally use refcounting functions in the trigger
+	 * function, e.g. clk_enable/disable.
+	 */
+	.trigger				= dai_pcm_trigger,
+	.bespoke_trigger		= NULL,
+	/*
+	 * For hardware based FIFO caused delay reporting.
+	 * Optional.
+	 */
+	.delay					= NULL,
 };
 
 #define STUB_RATES	SNDRV_PCM_RATE_8000_192000
@@ -368,6 +711,81 @@ static struct snd_soc_dai_ops platform_pcm_dai_ops = {
 		SNDRV_PCM_FMTBIT_U32_LE | \
 		SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE)
 
+#if 0
+/*
+ * Digital Audio Interface Driver.
+ *
+ * Describes the Digital Audio Interface in terms of its ALSA, DAI and AC97
+ * operations and capabilities. Codec and platform drivers will register this
+ * structure for every DAI they have.
+ *
+ * This structure covers the clocking, formating and ALSA operations for each
+ * interface.
+ */
+struct snd_soc_dai_driver {
+	/* DAI description */
+	const char *name;
+	unsigned int id;
+	unsigned int base;
+	struct snd_soc_dobj dobj;
+
+	/* DAI driver callbacks */
+	int (*probe)(struct snd_soc_dai *dai);
+	int (*remove)(struct snd_soc_dai *dai);
+	int (*suspend)(struct snd_soc_dai *dai);
+	int (*resume)(struct snd_soc_dai *dai);
+	/* compress dai */
+	int (*compress_new)(struct snd_soc_pcm_runtime *rtd, int num);
+	/* Optional Callback used at pcm creation*/
+	int (*pcm_new)(struct snd_soc_pcm_runtime *rtd,
+		       struct snd_soc_dai *dai);
+	/* DAI is also used for the control bus */
+	bool bus_control;
+
+	/* ops */
+	const struct snd_soc_dai_ops *ops;
+	const struct snd_soc_cdai_ops *cops;
+
+	/* DAI capabilities */
+	struct snd_soc_pcm_stream capture;
+	struct snd_soc_pcm_stream playback;
+	unsigned int symmetric_rates:1;
+	unsigned int symmetric_channels:1;
+	unsigned int symmetric_samplebits:1;
+
+	/* probe ordering - for components with runtime dependencies */
+	int probe_order;
+	int remove_order;
+};
+
+/* SoC PCM stream information */
+struct snd_soc_pcm_stream {
+	const char *stream_name;
+	u64 formats;			/* SNDRV_PCM_FMTBIT_* */
+	unsigned int rates;		/* SNDRV_PCM_RATE_* */
+	unsigned int rate_min;		/* min rate */
+	unsigned int rate_max;		/* max rate */
+	unsigned int channels_min;	/* min channels */
+	unsigned int channels_max;	/* max channels */
+	unsigned int sig_bits;		/* number of bits of content */
+};
+
+/* generic dynamic object - all dynamic objects belong to this struct */
+struct snd_soc_dobj {
+	enum snd_soc_dobj_type type;
+	unsigned int index;	/* objects can belong in different groups */
+	struct list_head list;
+	struct snd_soc_tplg_ops *ops;
+	union {
+		struct snd_soc_dobj_control control;
+		struct snd_soc_dobj_widget widget;
+	};
+	void *private; /* core does not touch this */
+};
+
+#endif
+
+#if 0
 static struct snd_soc_dai_driver platform_dai[] = {
 	{
 		.name = "cpu.dai.i2s",
@@ -387,6 +805,75 @@ static struct snd_soc_dai_driver platform_dai[] = {
 			.rates = STUB_RATES,
 			.formats = STUB_FORMATS,
 		},
+	},
+};
+#endif
+
+static struct snd_soc_dobj dummy_dobj;
+
+/*
+ * Digital Audio Interface Driver.
+ *
+ * Describes the Digital Audio Interface in terms of its ALSA, DAI and AC97
+ * operations and capabilities. Codec and platform drivers will register this
+ * structure for every DAI they have.
+ *
+ * This structure covers the clocking, formating and ALSA operations for each
+ * interface.
+ */
+static struct snd_soc_dai_driver platform_dai[] = {
+	{
+		/* DAI description */
+		.name					= "cpu.dai.i2s",
+		.id						= 0,
+		.base					= 0,
+		.snd_soc_dobj			= dummy_dobj,
+
+		/* DAI driver callbacks */
+		.probe					= NULL,
+		.remove					= NULL,
+		.suspend				= NULL,
+		.resume					= NULL,
+		/* compress dai */
+		.compress_new			= NULL,
+		/* Optional Callback used at pcm creation*/
+		.pcm_new				= NULL,
+		/* DAI is also used for the control bus */
+		.bus_control			= 0,
+
+		/* ops */
+		.ops					= &platform_pcm_dai_ops,
+		.cops					= NULL,
+
+		/* DAI capabilities */
+		.capture	= {
+			.stream_name		= "Capture",
+			.formats			= STUB_FORMATS,
+			.rates				= STUB_RATES,
+			.rate_min			= 0,		/* min rate */
+			.rate_max			= 0,		/* max rate */
+			.channels_min		= 1,
+			.channels_max		= 384,
+			.sig_bitsi			= 0,		/* number of bits of content */
+		},
+		.playback	= {
+			.stream_name		= "Playback",
+			.formats			= STUB_FORMATS,
+			.rates				= STUB_RATES,
+			.rate_min			= 0,		/* min rate */
+			.rate_max			= 0,		/* max rate */
+			.channels_min		= 1,
+			.channels_max		= 384,
+			.sig_bitsi			= 0,		/* number of bits of content */
+		},
+
+		.symmetric_rates		= 0,
+		.symmetric_channels		= 0,
+		.symmetric_samplebits	= 0,
+
+		/* probe ordering - for components with runtime dependencies */
+		.probe_order			= 0,
+		.remove_order			= 0,
 	},
 };
 
