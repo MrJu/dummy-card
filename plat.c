@@ -38,6 +38,33 @@
 #define DUMMY_SND_MAX_BUFFER_BYTES (DUMMY_SND_MAX_PERIOD_BYTES \
 						* DUMMY_SND_MAX_PERIODS)
 
+
+static const struct snd_pcm_hardware dummy_dma_snd_hw = {
+	.info			= SNDRV_PCM_INFO_INTERLEAVED |
+				  SNDRV_PCM_INFO_MMAP |
+				  SNDRV_PCM_INFO_MMAP_VALID |
+				  SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				  SNDRV_PCM_INFO_PAUSE |
+				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+
+	.formats		= (SNDRV_PCM_FMTBIT_S16_LE |
+				  SNDRV_PCM_FMTBIT_S32_LE |
+				  SNDRV_PCM_FMTBIT_S24_LE |
+				  SNDRV_PCM_FMTBIT_FLOAT_LE),
+
+	.rates			= SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT,
+	.rate_min		= 8000,
+	.rate_max		= 192000,
+	.channels_min		= 1,
+	.channels_max		= 8,
+	.buffer_bytes_max	= DUMMY_SND_MAX_BUFFER_BYTES,
+	.period_bytes_min	= DUMMY_SND_MIN_PERIOD_BYTES,
+	.period_bytes_max	= DUMMY_SND_MAX_PERIOD_BYTES,
+	.periods_min		= DUMMY_SND_MIN_PERIODS,
+	.periods_max		= DUMMY_SND_MAX_PERIODS,
+	.fifo_size		= 0,
+};
+
 struct buffer_manipulation_tools {
 	struct timer_list timer;
 	struct snd_pcm_substream *substream;
@@ -46,31 +73,6 @@ struct buffer_manipulation_tools {
 	uint32_t pos; //Hardware pointer position in ring buffer
 	unsigned long timer_cal; //time taken for each period
 	unsigned stop_timer; 
-};
-
-static struct snd_pcm_hardware asoc_uspace_pcm_hw = {
-	.info =		(SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_MMAP_VALID |
-			SNDRV_PCM_INFO_PAUSE |
-			SNDRV_PCM_INFO_RESUME |
-			SNDRV_PCM_INFO_SYNC_START |
-			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
-	.formats =	(SNDRV_PCM_FMTBIT_S16_LE |
-			SNDRV_PCM_FMTBIT_S32_LE |
-			SNDRV_PCM_FMTBIT_S24_LE |
-			SNDRV_PCM_FMTBIT_FLOAT_LE),
-	.rates =	SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT,
-	.rate_min =		8000,
-	.rate_max =		192000,
-	.channels_min =		1,
-	.channels_max =		8,
-	.buffer_bytes_max =	2 * 1024 * 1024,
-	.period_bytes_min =	64,
-	.period_bytes_max =	(1024 * 1024),
-	.periods_min =		2,
-	.periods_max =		32,
-	.fifo_size =		0,
 };
 
 struct buffer_manipulation_tools *get_bmt(struct snd_pcm_substream *ss)
@@ -113,7 +115,7 @@ void timer_callback(struct timer_list *t)
 
 static int asoc_platform_open(struct snd_pcm_substream *substream)
 {
-	snd_soc_set_runtime_hwparams(substream, &asoc_uspace_pcm_hw);
+	snd_soc_set_runtime_hwparams(substream, &dummy_dma_snd_hw);
 	return 0;
 }
 
@@ -148,7 +150,7 @@ static const struct snd_pcm_ops platform_ops =
 static inline void *dummy_dma_alloc_coherent(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t gfp)
 {
-	*dma_handle = NULL;
+	*dma_handle = (dma_addr_t)NULL;
 	return kzalloc(size, GFP_KERNEL);
 }
 
@@ -162,7 +164,8 @@ static int dummy_dma_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 {
 	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
-	size_t size = DUMMY_SND_MAX_BUFFER_BYTES;
+	size_t size = dummy_dma_snd_hw.buffer_bytes_max;
+	int i;
 
 	buf->dev.type = SNDRV_DMA_TYPE_DEV;
 	buf->dev.dev = pcm->card->dev;
@@ -170,6 +173,11 @@ static int dummy_dma_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 			&buf->addr, GFP_KERNEL);
 	if (!buf->area)
 		return -ENOMEM;
+
+	for (i = 0; i < DUMMY_SND_MAX_BUFFER_BYTES; i++) {	
+		buf->area[i] = i;
+	}
+
 	buf->bytes = size;
 	buf->private_data = NULL;
 
@@ -302,6 +310,8 @@ static int dai_pcm_hw_params(struct snd_pcm_substream *substream,
 	bmt->substream = substream;
 
 	// return snd_pcm_lib_alloc_vmalloc_buffer(substream, params_buffer_bytes(params));
+
+	return 0;
 }
 
 static int dai_pcm_hw_free(struct snd_pcm_substream *substream,
